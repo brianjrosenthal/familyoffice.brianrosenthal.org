@@ -148,6 +148,10 @@ Examples:
 - Purchase price (optional)
 - Warranty information
 - Photos
+- Receipts — proof of purchase kept for tax records. Each receipt has a title, a
+  description, and an image (JPEG/PNG/WebP/GIF/HEIC or PDF). Unlike asset photos,
+  receipt images are stored as private files and are served only through a
+  login-checked endpoint, never the public disk cache.
 
 # 3. Document Vault
 

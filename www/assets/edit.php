@@ -16,12 +16,14 @@ if (!$asset) {
 }
 
 $photos = AssetManagement::listPhotos($assetId);
+$receipts = AssetManagement::listReceipts($assetId);
 
 // One-shot flash + form repopulation from eval pages
 $msg = $_SESSION['success'] ?? null;
 $err = $_SESSION['error'] ?? null;
 $form = $_SESSION['form_data'] ?? [];
-unset($_SESSION['success'], $_SESSION['error'], $_SESSION['form_data']);
+$receiptForm = $_SESSION['receipt_form_data'] ?? [];
+unset($_SESSION['success'], $_SESSION['error'], $_SESSION['form_data'], $_SESSION['receipt_form_data']);
 
 $val = function (string $key) use ($form, $asset) {
     return $form[$key] ?? ($asset[$key] ?? '');
@@ -109,6 +111,70 @@ header_html('Edit ' . $asset['name']);
 </div>
 
 <div class="card">
+  <h3>Receipts</h3>
+  <p class="small">Proof of purchase kept for taxes. Receipt images are private — they are only viewable when signed in.</p>
+
+  <?php if (!empty($receipts)): ?>
+    <div class="stack" style="margin-bottom:12px;">
+      <?php foreach ($receipts as $receipt): ?>
+        <?php $isImage = str_starts_with((string)($receipt['content_type'] ?? ''), 'image/'); ?>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <?php if (!empty($receipt['private_file_id'])): ?>
+            <a href="/assets/receipt_image.php?receipt_id=<?= (int)$receipt['id'] ?>" target="_blank" style="flex:none;">
+              <?php if ($isImage): ?>
+                <img src="/assets/receipt_image.php?receipt_id=<?= (int)$receipt['id'] ?>" alt="<?=h($receipt['title'])?>" style="width:96px;height:96px;object-fit:cover;border-radius:10px;display:block;">
+              <?php else: ?>
+                <span class="button small">📄 View</span>
+              <?php endif; ?>
+            </a>
+          <?php endif; ?>
+          <div style="flex:1;min-width:0;">
+            <div><strong><?=h($receipt['title'])?></strong></div>
+            <?php if (!empty($receipt['description'])): ?>
+              <div class="small"><?=nl2br(h($receipt['description']))?></div>
+            <?php endif; ?>
+            <div class="small">
+              Added <?=h(date('M j, Y', strtotime((string)$receipt['created_at'])))?>
+              <?php if (!empty($receipt['private_file_id'])): ?>
+                · <a href="/assets/receipt_image.php?receipt_id=<?= (int)$receipt['id'] ?>&download=1"><?=h($receipt['original_filename'] ?? 'Download')?></a>
+              <?php endif; ?>
+            </div>
+          </div>
+          <div style="flex:none;display:flex;gap:6px;">
+            <a class="button small" href="/assets/receipt_edit.php?id=<?= (int)$receipt['id'] ?>">Edit</a>
+            <form method="post" action="/assets/receipt_remove_eval.php" onsubmit="return confirm('Delete this receipt and its image? This cannot be undone.');" data-skip-unsaved-warning>
+              <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
+              <input type="hidden" name="receipt_id" value="<?= (int)$receipt['id'] ?>">
+              <input type="hidden" name="asset_id" value="<?= (int)$assetId ?>">
+              <button class="button small" type="submit">Remove</button>
+            </form>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php else: ?>
+    <p class="small">No receipts yet.</p>
+  <?php endif; ?>
+
+  <form method="post" action="/assets/receipt_add_eval.php" enctype="multipart/form-data" class="stack" id="assetReceiptForm">
+    <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
+    <input type="hidden" name="asset_id" value="<?= (int)$assetId ?>">
+    <label>Receipt title
+      <input type="text" name="title" value="<?=h($receiptForm['title'] ?? '')?>" placeholder="e.g. Home Depot — water heater" required>
+    </label>
+    <label>Description
+      <textarea name="description" rows="2" placeholder="What was purchased, from whom, and anything a tax preparer would want to know"><?=h($receiptForm['description'] ?? '')?></textarea>
+    </label>
+    <label>Receipt image
+      <input type="file" name="image" accept="image/*,application/pdf" required>
+    </label>
+    <div class="actions">
+      <button class="button" id="assetReceiptBtn" type="submit">Add Receipt</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
   <h3>Danger Zone</h3>
   <form method="post" action="/assets/remove_eval.php" onsubmit="return confirm('Delete this asset? This cannot be undone.');" data-skip-unsaved-warning>
     <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
@@ -119,16 +185,19 @@ header_html('Edit ' . $asset['name']);
 
 <script>
   (function(){
-    // Double-click protection for the photo upload button
-    var form = document.getElementById('assetPhotoForm');
-    var btn = document.getElementById('assetPhotoBtn');
-    if (form && btn) {
+    // Double-click protection for the photo / receipt upload buttons
+    function guard(formId, btnId, busyLabel) {
+      var form = document.getElementById(formId);
+      var btn = document.getElementById(btnId);
+      if (!form || !btn) return;
       form.addEventListener('submit', function(e) {
         if (btn.disabled) { e.preventDefault(); return; }
         btn.disabled = true;
-        btn.textContent = 'Uploading...';
+        btn.textContent = busyLabel;
       });
     }
+    guard('assetPhotoForm', 'assetPhotoBtn', 'Uploading...');
+    guard('assetReceiptForm', 'assetReceiptBtn', 'Uploading...');
   })();
 </script>
 

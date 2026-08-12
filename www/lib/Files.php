@@ -221,7 +221,7 @@ final class Files {
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = (string)$finfo->file($tmp);
     if (!in_array($mime, $allowedMimeTypes, true)) {
-      throw new InvalidArgumentException('Unsupported file type (' . $mime . '). Allowed: PDF, images, Word, Excel, text.');
+      throw new InvalidArgumentException('Unsupported file type (' . $mime . '). Allowed: ' . self::describeMimeTypes($allowedMimeTypes) . '.');
     }
 
     $data = @file_get_contents($tmp);
@@ -231,6 +231,28 @@ final class Files {
 
     $originalName = (string)($file['name'] ?? 'document');
     return self::insertPrivateFile($data, $mime, $originalName, $createdByUserId);
+  }
+
+  // Human-readable summary of an allowlist, for upload error messages
+  private static function describeMimeTypes(array $mimeTypes): string {
+    $labels = [
+      'application/pdf' => 'PDF',
+      'application/msword' => 'Word',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'Word',
+      'application/vnd.ms-excel' => 'Excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'Excel',
+      'text/plain' => 'text',
+      'text/csv' => 'CSV',
+    ];
+
+    $names = [];
+    foreach ($mimeTypes as $mime) {
+      $name = str_starts_with((string)$mime, 'image/') ? 'images' : ($labels[$mime] ?? (string)$mime);
+      if (!in_array($name, $names, true)) {
+        $names[] = $name;
+      }
+    }
+    return implode(', ', $names);
   }
 
   // Insert a private file row and return the new id

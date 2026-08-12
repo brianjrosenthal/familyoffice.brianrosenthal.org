@@ -61,6 +61,9 @@ header_html('Household Assets');
               <?php if (!empty($asset['description'])): ?>
                 <div class="small"><?=h(mb_strimwidth($asset['description'], 0, 90, '…'))?></div>
               <?php endif; ?>
+              <?php if (!empty($asset['receipt_count'])): ?>
+                <div class="small">🧾 <?= (int)$asset['receipt_count'] ?> receipt<?= (int)$asset['receipt_count'] === 1 ? '' : 's' ?></div>
+              <?php endif; ?>
             </td>
             <td><?=h($asset['category'] ?? '')?></td>
             <td><?= $asset['purchase_date'] ? h(date('M j, Y', strtotime($asset['purchase_date']))) : '' ?></td>
